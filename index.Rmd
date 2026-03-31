@@ -1,0 +1,1659 @@
+---
+title: "R coding Tips for writing Water Quality Reports"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_collapsed: false
+    toc_depth: 3
+    number_sections: true
+    lof: yes
+    lot: yes
+
+---
+
+# Why R?
+The purpose of this report is to provide some help to other people learning R for the purpose of writing water quality reports. Consider this more of a reference document than a "how to" though.
+
+R is great because it can streamline data analysis, create great figures that you can't do with Excel, and add figures and interactive maps directly into the report. It also works without internet, even when creating and viewing an html page!  My home internet varies from intermittent to fast to slow, and is REALLY slow if I am trying to work in ArcGIS online.  With R, there are none of those issues.
+
+Writing the first report and coding is really hard, but subsequent reports are a lot easier, because you just pull in the new data set and re-use most of the codes you created for the first one.
+
+One thing to know about R is that there may be many paths to get to some action you are trying to do. What is in here is what I know at this point in time, which is pretty limited.  You will probably find methods that are different and work as well or better.
+
+## Beginnings
+Initially, I just wanted to make nice figures! That's what I focused on for pretty much the first year.  Then I wanted to make maps. The last thing I worked with was the actual data analysis. 
+
+R is a continual learning process!
+
+I began this latest coding as a test to see if I could use R in a way that would streamline the type of work I have been doing. Chickaloon Village began collecting water quality data in May 2015, and it collects at least three readings for every value at each site (three readings of pH, of temperature, etc). I enter the information in an Excel sheet, and have columns where the mean and standard deviation are calculated for each parameter at each site for each sampling event. There are also columns that calculate whether the set of three (or more) values for each parameter meet the Precision requirements set in the 2021 Quality Assurance Project Plan (QAPP).  From this large Excel sheet, I would then transfer a limited number of columns (date, site identification code, site name, and parameters (pH, Temperature, Dissolved Oxygen, Specific Conductance, Turbidity)) to a new Excel to be the Water Quality Data sheet I would use in writing the report. I would also develop a  new Excel sheet with quality control (QC) tables to import into R for the report. 
+
+## Working to a better method
+It seemed like this process could be vastly streamlined. Using R could not only work with only one Excel sheet, it could make analysis faster for me and simplify analysis for other employees that come after me. The goals then were:
+
+- Can I have all data, the individual readings including the replicates, since May 2015 in a single Excel sheet and be able to pull it in as the base data?
+
+- From that, can I pull out whatever time period I am interested in?
+
+- Can I pull out the statistics (maximum, mean, etc) for an individual year or an individual site from that base sheet of raw data?
+
+- Can I determine the quality control (QC) measures that EPA wants to see (completeness, frequency, precision) from the base sheet of raw data?
+
+The answer to all of these is YES! 
+
+## HELP!!
+Working in R is a big learning curve for those of us that don't code! But there can be immediate satisfaction in creating nice figures, and eventually R grows on you because there is so much you can do with it. You are going to run into hundreds, if not thousands, of instances where something isn't working or you can't find instructions on how to do something.  How can you find answers? I've listed a few places you can go for help. 
+
+- Search engines are your friend! Seriously. There is a tremendous amount of great information through StackExchange, Bookdown, and other sources that will come up when you search.
+
+- Use R's "Cheatsheets". They're online and free! I have "Cheatsheets" for R Markdown, tidyr, ggplot, dplyr, data wrangling, and more. It is super helpful to collect these and refer to them.
+
+- Invest in the book "R for Data Science" by Hadley Wickham and Garrett Grolemund.  
+
+- Attend ITEP R trainings and ITEP Data Management Drop-In sessions. Expect to take several! Possibly Coursera or other self-paced classes may also be helpful. 
+
+- Find a friend and/or mentor. I will help where I can.
+
+# R coding basics 
+
+## Install R
+This report assumes that the reader knows some basics about R, but also provides some basic information to help jog memories.  Before getting started in using R to write a report, you need to
+
+- Install R on your computer
+- Install R Studio on your computer
+
+### Set up Panes
+From R Studio, arrange the four window panes in a manner that is easiest for you to work with and stick with that.  
+
+- Go to the top bar and select View/Panes. Select "Show all panes" and "Console on Left".  
+- Go to View/Panes/Pane Layout. For now, place "Source" pane on the top left, "Console" pane on the bottom left, "Environment, History, Connections" on the top right, and "Files, Plots, Packages" on the bottom right.
+
+**TIP:** At the top right of the Environment pane is an icon that says "List" or "Grid". Toggle back and forth between these.  You can only OPEN data frames in the "list". You can only DELETE data frames or values in the "Grid".
+
+### Install packages
+Install packages like readxl, openxlsx, and tidyverse.  These can be found in the "Packages" tab of the lower right pane ("Files, Plots, Packages" pane). These only need to be installed ONCE, although it's good to check for updates occasionally. For now, see what I have in my "library", use the search button in the "Packages" tab of the "Files" pane, and install any relevant ones.
+
+### Code chunks
+A "chunk" of code tells R what operation or set of operations you want to run. This could be mathematical operations, creating figures, performing data analysis, make maps, etc.  "Chunks" always show up in gray. 
+
+**TIP**: Use Ctrl+Alt+I to create an r chunk.  
+
+**TIP:** To collapse a chunk, select the small arrow on the left, by the line numbers.
+
+Once created, name the chunk. You do this so that you can move between code chunks easily (at the bottom of the writing pane is a place to find chunk names). Do NOT put any commas or colons or any other symbols between the letter "r" and the chunk name.  The chunk we created above is called "libraries".
+
+It can also be helpful to write notes inside the chunk; this is material that is not actually code. To do this, use a hashtag INSIDE the chunk. If you don't use a hashtag, R tries to "run" the text as code and you'll get an error.
+
+The first code chunk we are going to write will tell the document how you want the chunks handled. The first code chunk is going to apply to all chunks that follow it. The one below says 
+
+- don't display code messages or warnings, and stop running the code if there is an error
+- DO print out the code chunk in the document (echo=TRUE); normally you want the code to say echo=FALSE because normally you don't want the code to show in your Water Quality Report. When this document is printed, I do want people to see the code.
+- make the document an "html", not a "doc" or "pdf"
+
+You have to click on the green arrow on the right of the grey "chunk" or go to the top bar and select "Run" to actually have R perform the work.
+
+```{r document default setup}
+#This will apply to ALL the code chunks, unless a later chunk specifically changes one of them.
+knitr::opts_chunk$set(message =FALSE, warning=FALSE, error = FALSE, echo=TRUE)
+options(knitr.table.format = "html") 
+```
+
+
+**TIP:** What goes in the first r code chunk will apply to all r code chunks
+
+**TIP:** Keep code chunks small, and run them right after they are created to make sure they work.
+
+**TIP:** Text written outside of a chunk will show in the final document. Text written with a hashtag inside a chunk will not show.
+
+**TIP:** If you want the actual code to show up in the final document, use {r, echo=TRUE}.
+
+### Pull in libraries
+You need to set up libraries, which is how R knows which packages you intend to use in this particular document.  Each report may require different packages. Once a package is installed, it does not need to be installed again. However, the "library" must be called up every time the R scrip is opened. Start by just using the ones in the "code chunk" below, although it is more than you will need! This "libraries" code chunk needs to be "called in" (run) EVERY TIME that the R scrip is closed and opened again.
+
+```{r libraries}
+#you must install packages ("Files, Plots" pane) and then call them up with "library" for R to work (as a code chunk in the "Source" pane).   The libraries in this chunk are ones used in my 2022 or 2023 Water Quality reports; there are also some that were called up that ended up not being used. There isn't a downside to calling in more libraries than you will use.
+
+library(conflicted)
+library(RODBC)
+library(readxl)
+library(tidyverse)
+library(treemap)
+library(treemapify)
+library(leaflet)
+library(leaflet.minicharts)
+library(sf)
+library(leafem)
+library(randomcoloR)
+library(viridis)
+library(viridisLite)
+library(leafsync)
+library(RColorBrewer)
+library (mapview)
+library(knitr) 
+library(lubridate)
+library (tools)
+library (geojsonsf)
+library (latexpdf)
+library (tinytex)
+library (xtable)
+library (jpeg)
+library(openxlsx)
+library(kableExtra)
+library(palmerpenguins)
+library(cowplot)
+library(magick)
+library(av)
+library(flextable)
+library(pandoc)
+library(tables)
+
+```
+
+## What if...?
+There may be times when something you try to follow here fails, but here are a few things to keep in mind.
+
+- If what should be text is showing up in color, check to see if there are three dots (which end a code chunk) outside of a code chunk.  This can happen when moving chunks around.
+
+- If there is a red "x" on the side of line, the line won't run. There is probably something wrong with syntax, like a comma in the wrong place.
+
+- If there are several lines of code within a chunk, run each separately (use Ctrl+ Enter with the cursor on the code). This will help isolate what part of the chunk is causing a problem.
+
+<br>
+
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+```
+::: blue
+:::
+
+# Report writing basics
+<br>
+
+You can use R to just do data analysis, but you can also write your entire report in R Markdown.  We are writing the report in R Markdown, which holds the text and coding and can "output" into an html, docx, pdf, or ppt. 
+
+At the top bar, open up File/New File/R Markdown. For now, set up the Title and Output as shown at the top of this report, using your own words in the title. 
+
+You tell R how to set things up by a) writing the Title and Output as shown at the top of this document and b) define what shows up on the pages of the final document using a code chunk. Here we are writing in html, so we write a chunk for html.
+
+## Define html parameters
+Type ```{=html}  because we are creating a document in html (other options are to create a document in Word, PDF, or Powerpoint, but I'm not very familiar with how to create Word and not at all familiar with coding for the others). For now, just copy what is below. Play with values like max-width, font-size, etc as you like.
+
+```{=html set up}
+<style>
+  body .main-container {
+        max-width: 2500px;
+  }
+  body, td {
+  font-size: 16px;
+  }
+  #TOC {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 250px;
+  height: 100%;
+  overflow:auto;
+  }
+</style>
+```
+
+## How do I....?
+Here are some basics that help with how you want your report to look.
+
+### How do I make a header?
+Use a hashtag to create a header, and additional hashtags for sub-headers. Make sure you have an empty line above the section header and a SPACE between the hashtag and the header text.
+
+Look at the top bar of the "Source" pane.  On the top right is a box that says "Outline". Once you develop headers, they will show up in the Outline. This makes it very easy to go back and forth between sections!
+
+What will this look like in the final html document? At the very top of the document, we say what we what done with headers in the html:  we want them to be in a floating table of contents that goes three layers deep. We did this with toc (Table of Contents) and number_sections:
+<br>
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_collapsed: false
+    toc_depth: 3
+    number_sections: true
+
+You can also create background colors or other ways to make the header stand out. Look at the code around the header "Report writing basics".  There is an html chunk that defines a color to put behind the header, and to give it some "padding" and a border.  It is described below because the "code" won't show up in the final document.
+{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+::: color
+[#place header name here]
+:::
+
+It is shown in the html chunk below, but the chunk can only be seen in the R code, not in the html document.
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+```
+::: blue
+[# Place header name here]
+:::
+<br> 
+
+However - if you put the border syntax around the header, for some reason it stops the floating Table of Contents from bringing up subheaders.  This is something I am still figuring out.  Instead of formatting the headers themselves, I am using blocks of blue as dividers before a new section. That way the floating TOC will still show in the html.  The last two section of this document, "Knitting" and "Summary" have a formatted header so you can see what it looks like as code and in the final html.
+
+### How to create italic or bold font
+Use a single * to create italics. The * needs to be before and after the text you want in italics. *Here is an example.*
+Use two ** before and after text to create bold font. **Here is an example.**
+
+### How to make a bulleted list
+Use a single dash or * to create a bullet, indent and dash (or *) to create a sub-bullet. 
+
+- There needs to be a blank line before the first - or *. The first word after the dash or asterisk must start one space after the dash or asterisk.
+
+    - The sub bullets need to be indented 2 tabs (not spaces) for the first sub bullet ...
+      - and an additional single tab for the third level.  If these are not followed precisely, the right type of bulleted list does not happen.
+
+### How do I know what my report looks like?
+At the top of this "pane" is an icon of a ball of yarn that says "Knit". Select it to see the options you have.We are going to "knit" to "html". Whenever you want to see what the report looks like, select "knit/html".  Knitting will NOT work if there is an error in the coding, so it is also a great way to see if there is code that needs to be fixed. 
+
+We won't knit until the end of this document, but you do want to set up some parameters using a code chunk. 
+
+<br>
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+```
+::: blue
+:::
+
+# Data analysis basics
+<br> 
+
+Think about what it is you want to show in your report. Do you want to show the entire range of pH for every year it's ever been measured? Do you want to show every parameter but only at one site for one year?  
+
+**TIP:** Start from the End: describe to yourself what it is you want to show, then begin to set up the data to get there.
+
+## Tell R where your stuff is
+It is necessary to tell R Markdown what folder has all the information that you will be using.  I would suggest setting up a single folder for your year or years of interest and call it something like "Water Quality Report 2022".  Within that, set up three folders:  
+
+- "Data" folder where your Excel or csv sheets are held
+- "Images" folder where any photos or other .jpg, .png, .pdf items are held
+- "Shapefiles" folder where any material for creating maps are held.
+
+### Set up folders and sub-folders
+Once the folders are created on your computer, you need to tell R how to find them. 
+
+Go to the "Files" tab in the "Files, Plots, Packages" pane. Navigate to the main folder where you hold the Data, Image, and Shapefile folders. See the little house at the top of that pane? Next to that is the sequence of folders that lead to the folder you want. For me, it looks like: Home>CNV>WQ monitoring>Baseline stream WQ> WQ monitoring_Reports.  
+
+Above all of that is a little icon that looks like a gear and the word "More". Click on the arrow next to that. Select "Set as working directory". Then select "Copy Folder Path to Clipboard". Paste it into the code below to be your Base Directory (base_dir).
+
+- You must use the name of a folder in your computer as the base directory.
+
+```{r Define the main folder to pull information from}
+#Define the main working directory file (base_dir). Note that you will NOT be able to run this code. You need to set up your own folders.
+
+base_dir <- "~/CNV/WQ monitoring/Baseline stream WQ/WQ monitoring_Reports/R code basics"
+```
+
+To set up the subfolders, you need to use the code "paste0". For now just use the code shown in the chunk. The symbols are very specific to having R recognize what you want it to do. 
+
+- You CAN run this R chunk once you have defined base_dir using your own personal folder and set up "Data", "Images" and "Shapefiles" folders in your personal folder.  The Data, Images, and Shapefiles folders can be the ones I placed in the shared Google Drive, or they can be your own that you created with your own documents inside them.
+
+```{r Define subfolders}
+#Define subfolders. Normally there are three main subfolders (Data, Shapefiles, and Images). Note that you need paste0 and you need "/Name/". Do NOT add a period, comma, or any other symbols.
+
+data_dir<- paste0(base_dir,"/Data/")
+image_dir<- paste0(base_dir,"/Images/")
+shape_dir<- paste0(base_dir,"/Shapefiles/")
+
+```
+
+**TIP:** Pay attention if a little red x shows up at the line number.  This tells you something is NOT going to work. Often all you need to do is change a comma, quotation mark, or other symbol in the code.  
+
+**Reminder tip** Run every chunk after you've created it to make sure it works before going on.
+
+
+### Call in data sheets
+You will see many examples in this report of "calling in" images, shapefiles, and data sheets.  Below is one example -- calling in the main data sheet where you hold all of your information. Mine is set up to have ALL of the raw data collected since 2015, including columns I have created for weather, notes on the natural environment, etc., much of which is not actually necessary for creating a report for EPA or Tribal Council. 
+
+- The data sheet can be mine (in the shared Google Drive) or yours. Either will become the data frame "WQDataFull" once the code is run.
+
+```{r bring in data sheets, results='hide'}
+#this is where you define and import the actual data, shapefile, or image you want to use. We will bring in shapefiles and images later. Below are the Excel sheets that I plan to manipulate in this report.
+
+
+WQDataFull<-read_excel(paste0(data_dir,"WQData 2015-2023.xlsx"))
+
+Locations<-read_excel(paste0(data_dir,"WQ locations for 2023 Report.xlsx"))
+```
+
+
+So I first pull in the whole data sheet, then I trim it to relevant material for data analysis. We'll show that later. 
+
+- Note that you can NOT run this code until you replace my named sheet "WQData.xlsx" with your own named sheet or pull my named data sheet out of the "Data" subfolder in the shared Google Drive and placed it in your base_dir.
+
+On the left side of the equation is what you want to call your data. You must use "MyDataName <-" with a name that has no spaces. On the right side of the arrow is what will be read in.  For data, it will be read_excel, read_xlsx, or read_csv.  You must have the "read_excel" or "read_xlsx" or "openxlsx" packages loaded and read in "libraries" to use an Excel sheet.
+
+You must use (paste0) to call in the folder that contains the data sheet you want.
+
+If you are pulling in my data sheet (from the "Data" folder), a long list of red lines will appear.  This is because R wants to see "numbers" or something "logical" in cells that have "characters". It can be easier to remove any columns and rows you don't expect to use in Excel BEFORE importing the data set. I left columns I don't expect to use as this is addressing the question "can I use one big Excel sheet and pull out only the information I want". It will help demonstrate later how to remove or add columns to a data sheet ("data frame") in R.
+
+**TIP:** The pattern to tell R what data sheet you want to use is MyDataName<- then read.xlsx (or read_excel) or read.csv then paste0 then subfolder then "name of data sheet". The data sheet name must be exactly the name of the document, in quotation marks, and it's ok to have spaces in whatever name is inside the quotation marks. 
+
+## Setting up a data sheet for analysis
+To create a smaller "working" data sheet, you may want to reduce it to a few rows and/or columns that are relevant. Here I create a working sheet called "WQData". From here on out, we won't be using the full, big data sheet, just the WQData sheet.  To create smaller data sheets, create a name, pull in your main data sheet, and select the columns you want in the smaller one.
+
+Use an arrow <- to tell R what you want the new data sheet to be called. Using the arrow to create WQData<-WQDataFull will only re-name your entire big worksheet with the new name. That's not actually what we want -- creating the new sheet is described in "Choose columns".
+
+**TIP:** When naming your working sheet, call it something short that will work easily for a variety of functions.
+
+### Piping
+In creating the smaller working data sheet, I used a method called "piping". The piping symbol is %>%.  Piping says "From this thing on the left side of the symbol, perform an action defined on the right side". Whatever is on the right side is a subset of or a function performed on the material on the left side.
+
+- The symbol %>%  it tells R that you want something to be done to a data frame
+
+### Choose columns for a small database
+Here I use "select" to choose only the columns I will be using in the analysis. In your Environment pane, select the "WQDataFull" icon so that the data frame (data sheet) opens up. Here you can see how R has translated your column headers. If you have multiple columns with the same column name in your data sheet, R will create a name that is "column header...column number". If you have "pH" as the header in columns 10 and 15, it will name them "pH...10" and "pH...15".  This becomes important when you select the columns you want in your working data sheet.
+
+In the chunk below, we want our new sheet to be called "WQData" and we create it by choosing eight columns from the big WQDataFull sheet.
+
+- Enter <-WQDataFull%>%select(  
+- then as you type, options will come up for you to choose
+- If you do NOT see options come up, double check that your database has been "called in" and named and your syntax (commas, colons, etc) are accurate. 
+
+- Select the column names based on what R calls them.
+
+What R names a colum might be different from what the name is in your original sheet. Selecting from the choices R gives means that any quotation marks that might be associated with the name are included. If you type in Turbidity (NTU) but the selection wants 'Turbidity (NTU)', the chunk will not run.
+
+Run the chunk when you are finished to make sure you actually created what you want!
+
+```{r trim columns for a smaller database}
+#To choose columns, use the term "select"; note that you might just be able to use "select", if that doesn't work, use "dplyr::select".  
+
+WQData<-WQDataFull%>%
+  dplyr::select(Date, SiteID, SiteName, pH, `Temperature (C)`, `Dissolved oxygen (mg/L)`, `Specific conductance (mS/cm)`, `Turbidity (NTU)`)
+```
+
+
+### Dealing with dates
+Excel and R do not talk the same language for dates. You can learn more about this in one of the resources I listed. For now, open your WQData by clicking on the blue icon in the Environment pane.  If your dates in the "Date" column look something like 45162, which is common for data sets brought in from Excel, you'll need to convert it using "as.Date" or "as.POSIXct".
+
+The phrase (WQData$Date) says "perform the function on the Date column in the WQData data frame".  Again, after the $, R will give you options to select.
+
+```{r convert dates method #1, results='hide'}
+
+#This converts all the dates in the Date column of WQData to dates we recognized, and names the new data set "Dates".
+Dates<-as.POSIXct(WQData$Date)
+
+#as_date may only change one date, not all of them.  Excel "begins' dates at Dec 30, 1899 and counts forward. So February 1, 1901 would be Excel date 32.  The Excel date 42274.00 is September 27, 2015.
+Date1<-as_date(42274.00, origin="1899-12-30")
+
+```
+
+### Add a column
+You can add the new column to the WQData by using a term called "mutate". Mutate is discussed later, but for now here is what it looks like.
+```{r add a new Date column, results='hide'}
+#Use mutate to add the new column "Dates" onto the data sheet
+mutate(WQData, Dates)
+```
+
+### Choose rows (select specific years or sites)
+One way you might want to analyze data is by specific years. Dealing with dates in R is not intuitive! Read up on how to deal with dates in some of the sources I've listed. 
+
+Here I use "ymd". Every little thing in the code must be copied exactly or it won't work. You can't have a comma, a parenthesis, a space or anything else where it shouldn't be. For filtering dates, see page 242 in "R for data science"; use ymd and the year, month, and day without any dots or dashes. You can add hours or minutes as well.
+
+Below, we create a new data frame for the calendar year 2016 and call it WQ2016.
+```{r trim rows to set up date intervals for analysis, results='hide'}
+#To trim to one calendar year
+WQ2016<-WQData%>%
+  dplyr::filter(Date>ymd(20160101))%>%
+  dplyr::filter(Date<ymd(20170101))
+
+#To trim to a date interval of May 1 2016 to April 30 2017
+WQDateInterval<-WQData%>%
+  dplyr::filter(Date>ymd(20160430))%>%
+  dplyr::filter(Date<ymd(20170501))
+```
+
+I like to start my "water year" at breakup - when the streams are "born".  So I have created "water years" from May 1 to April 30 date intervals. If "filter" doesn't work, use dplyr::filter (we are using the dplyr package to filter).
+
+```{r define "water quality years" for data analysis}
+#below we define the "water quality" years for all the data of Sept 2015 to April 2023. There is probably an easier way to do it
+
+WQY2015<-WQData%>%
+  dplyr::filter(Date<ymd(20160101))
+
+WQY2016<-WQData%>%
+  dplyr::filter(Date>ymd(20160430))%>%
+  dplyr::filter(Date<ymd(20170501))
+
+WQY2017<-WQData%>%
+  dplyr::filter(Date>ymd(20170430))%>%
+  dplyr::filter(Date<ymd(20180501))
+
+WQY2018<-WQData%>%
+  dplyr::filter(Date>ymd(20180430))%>%
+  dplyr::filter(Date<ymd(20190501))
+
+WQY2019<-WQData%>%
+  dplyr::filter(Date>ymd(20190430))%>%
+  dplyr::filter(Date<ymd(20200501))
+
+WQY2020<-WQData%>%
+  dplyr::filter(Date>ymd(20200430))%>%
+  dplyr::filter(Date<ymd(20210501))
+
+WQY2021<-WQData%>%
+  dplyr::filter(Date>ymd(20210430))%>%
+  dplyr::filter(Date<ymd(20220501))
+
+WQY2022<-WQData%>%
+  dplyr::filter(Date>ymd(20220430))%>%
+  dplyr::filter(Date<ymd(20230501))
+```
+
+You might also want to trim your data sheet to look only at specific sites.
+```{r trim rows to a specific site}
+#To trim to one site. This is my site "Caribou Creek", which is also named CARCRK2.8
+
+CARCRK<-WQData%>%
+  dplyr::filter(SiteID=="CARCRK2.8")
+
+#Another method is to use subsetting. An example, to call out the site for Hicks Creek is
+#HICCRK<-subset(WQData, SiteID=="HICCRK0.5")
+```
+
+**TIP:** To choose ROWS use the term "filter" or "dplyr::filter"
+
+**TIP:** To choose COLUMNS use the term "select" or "dplyr::select"
+
+**TIP:** If a column name does not automatically come up as you type it in the "select" parentheses, the database you entered on the left side of the piping may not be recognized by R. Make sure the database was called in earlier.
+
+
+If you want to see what you created, you can
+<br>
+- go to the Environment pane and select the icon with the name you made (Environment pane must be in "List", not "Grid" view to do this) or
+
+- see what the first or last few lines look like
+<br>
+
+```{r column names, results='hide'}
+#this shows you the first few or last few rows and headers
+head(WQData)
+tail(WQData)
+colnames(WQData)
+#this can show you whether your columns are characters or numeric - if an analysis isn't working, it may be because a column needs to be changed to numeric
+```
+
+
+
+### Choose parameters for analysis 
+From the working data set, provide a shorthand for the parameters you want to analyse.   Using "SC", "DO", etc on the left of the arrow does not re-name the columns, it just provides a shorthand for when you want to analyze. 
+
+```{r shorthand for parameters, results='hide'}
+#the following tidies data and is common to all sites and analyses. 
+
+pH<-(WQData$pH)
+
+Temp<-(WQData$`Temperature (C)`)
+
+DO<-(WQData$`Dissolved oxygen (mg/L)`)
+
+SC<-(WQData$`Specific conductance (mS/cm)`)
+
+Turbidity<-(WQData$`Turbidity (NTU)`)
+
+```
+
+
+### Convert "characters" to "numeric"
+If you open the WQData data frame (click on icon in Environment pane) and scroll across the headers you can see that many are "characters". R will not perform calculations on "characters", so we need parameters in a "numeric" form.
+
+The code chunk below uses "as.numeric" to convert the parameters, similar to the way we changed Dates with "as.POSIXct".  Normally, you would do only this step when setting up parameter shorthand.
+
+
+```{r convert "characters" to "numeric", results='hide'}
+#the ensures that all the numbers are numeric.
+
+pH<-as.numeric(WQData$pH)
+
+Temp<-as.numeric(WQData$`Temperature (C)`)
+
+DO<-as.numeric(WQData$`Dissolved oxygen (mg/L)`)
+
+SC<-as.numeric(WQData$`Specific conductance (mS/cm)`)
+
+Turbidity<-as.numeric(WQData$`Turbidity (NTU)`)
+```
+
+
+Check the Environment pane under the "values" grey bar to see if your parameters are now numeric, or use head(WQData) to see the column headers.  The new values will NOT show up as numeric in the WQData data frame, which remains unchanged except for the Date conversion. 
+
+
+### Perform a simple mathematical function
+This chunk of code shows how to perform a simple mathematical function. It encompasses several useful tools.
+
+If you want to JUST perform a function, define the object then apply the function.  Here we call in our working data sheet (WQData) and choose the "Specific Conductance" column.The symbol $ says "from this thing on the left hand side, FIND this other thing".  So whatever comes on the right side will be a subset of what is on the left side.
+
+Once you enter WQData$, then a list of options will come up. It's good to choose from the list because the function won't work unless the EXACT text and symbols of the column are entered. If a list does NOT come up, you may want to check that you called in the data set, or whatever else is on the left side.
+
+In this example, the original column is Specific Conductance in mS/cm.  I want it in µS/cm.  Multiplying everything by 1,000 gives me the values I want. Note that using WQData$(Specific Conductance (mS/cm))*1000 won't work because that column on the WQData is still a "character".  Perform the function on the numeric SC that you created.
+
+If you just want to perform the function of multiplying every value in a column by 1000, use SC*1000.  The number should show up in blue font. 
+
+```{r perform a math function, eval=FALSE, results='hide'}
+SC*1000
+```
+
+**TIP:** The symbol %>% means PERFORM an action on the data frame
+
+**TIP:** The symbol $ means FIND something in the data frame
+
+**TIP:**  It matters whether R thinks your value is a character or number.
+
+
+### Add, name, and rename a column
+I don't actually just want to perform the function though, I want an entire column in µS/cm. To do this, I tell R to "mutate" the new SC into the WQData worksheet.
+
+```{r convert SC mS/cm to µS/cm and create a new column}
+#EPA wants SC in mS/cm in their WQX portal, we want it in µS/cm. To do this, multiply the column by 1000 and create a new column with those values. 
+
+#This tells R to make the Specific Conductance parameter numeric and call that parameter "SC" - but it does NOT change anything in the WQData data frame
+SC<-as.numeric(WQData$`Specific conductance (mS/cm)`)
+
+#Add new column to data set using "mutate". Once there is a new column, you can perform a function on it without losing the original Specific Conductance (mS/cm) column.
+WQData<-WQData%>%
+  mutate(WQData, SC)
+```
+
+Check the Environment pane.  Is there an SC? Does it show as a list of numbers or does it show as "empty"?  If it shows as "empty", try using "as.numeric".
+
+Open the WQData data frame. Is there a new column called "SC"?
+
+Now I want to multiply the values by 1000 and name the column "Specific conductance (µS/cm)". You should be able to use "SC<-(WQData$SC)*1000" but if that does NOT work, give the calculated value a new name. Here I use "SC_uS" for "microSiemens".
+```{r perform the function and rename the column}
+
+SC_uS<-(WQData$SC)*1000
+WQData<-mutate(WQData, SC_uS)
+       
+#rename the column you just created
+WQData<-WQData%>%
+  rename("Specific conductance (µS/cm)"= SC_uS)
+```
+
+Let's add all the numeric columns to the WQData data frame.
+```{r add columns to data frame}
+
+#Let's put all the "numeric" parameter columns on the WQData data frame
+WQData<-WQData%>%
+  mutate(WQData, Temp)%>%
+  mutate(WQData, DO)%>%
+  mutate(WQData, Turbidity)%>%
+  mutate(WQData, pH)
+```
+
+If you open the WQData data frame now, you'll see several columns have been added to the data frame -- but the new pH has NOT been added.  R wants a "unique name".
+
+```{r what to do with duplicate column headers}
+#Name the new column "pH_N" for numeric
+
+pH_N<-as.numeric(WQData$pH)
+
+WQData<-WQData%>%
+  mutate(WQData, pH_N)
+```
+
+Now that we have all the parameters with a numeric option, we might want to remove the "character" columns. We can "select" only the numeric columns to include in the "WQData" data frame, which essentially "removes" the columns not chosen. If you want to re-arrange the order of columns, you also do it by the order listed in "select". 
+
+Let R offer you options to put inside the "select" parentheses to make sure you are selecting the ones you want. When "selecting", if there are multiple options choose the option that looks like a little spreadsheet icon. When you hover over the option, a yellow box will show that will tell you whether your selection is a character, numeric, "dbl" (character and numeric), or other type of column.
+
+Normally we would probably just call our new set WQData, the same as before, and choose our numeric columns to go in it, which would remove our character columns. However, since this is a "training" document, we need to create a new name for the new database with the numeric columns. If we used the WQData name, then chunks of code we wrote earlier won't run later and we won't be able to knit the document.
+
+I will call the new data frame that has the numeric columns "WQDataN"
+
+```{r remove columns}
+#Instead of coding to "remove", you can just re-define what the WQData should have in it. 
+
+WQDataN<-WQData%>%
+  dplyr::select(Date, SiteID, SiteName, pH_N, Temp, DO, `Specific conductance (µS/cm)`, Turbidity, `Specific conductance (mS/cm)`)
+```
+
+Check to see if the new WQData data frame has the columns you want, and that the parameters are all "numeric". Do this by clicking on the blue icon next to WQData in the Environment pane, and once opened, hover over each column name.
+
+Let's rename the columns to something we would like to see in a table.
+```{r rename columns again}
+#We have already re-named SC to distinguish the mS/cm column from the µS/cm. Perform the same process with other columns.
+#This does not change the Temp, DO, etc that show below the "values" bar in the Environment pane, which is what we will use to perform analysis.
+
+WQDataN<-WQDataN%>%
+  rename("pH"=pH_N)%>%
+  rename("Temperature (C)"= Temp)%>%
+  rename("Dissolved oxygen (mg/L)"= DO)%>%
+  rename("Turbidity (NTU)"= Turbidity)
+```
+
+
+That was all a very long process to replace columns! There is probably a shorter way, but I haven't found it yet -- except to trim the Excel sheet before it's uploaded into the "Data" folder.
+
+**TIP:** To create a new column, use "mutate"
+
+**TIP:** Check the Environment pane to determine if an object is a number, a date, a character, or identified in some other way.
+
+
+## Summary statistics
+This is where we actually start to use R for data analysis. Let's start with some quick summary statistics.
+
+Here we show how to do summary statistics for a single parameter, for all parameters, and for all parameters over a time interval.  We aren't really developing tables for the report here, only getting a quick look at the data.
+
+We use "na.rm=TRUE" to ensure that the cells with no value are not included in the analysis.
+
+### Summary stats for one parameter
+```{r summary stats for one parameter, results='hide'}
+#This will give you the full range of each parameter for all sites and all dates. 
+
+#for summary stats on a single parameter. Note that the option that comes up to place inside the parentheses has a small pink box, not the data frame column "Turbidity (NTU)", because we are performing a data analysis on this parameter.
+summary(Turbidity, na.rm=TRUE)
+```
+Check the results -- do they make sense? If not, you may want to check for mistakes in the WQData data frame.
+
+Next summarize all the parameters for all data in the WQData - there are 5,605 rows and it pulls out columns 4-8, which are the columns for pH, Temperature, DO, SC, and Turbidity.
+
+### Summary stats for all parameters
+You could do summary(WQData) and get the stats for every column, but there would be meaningless stuff -- like "stats" for the columns with site names and dates. So you want to pull out specific columns. 
+
+Open the WQData sheet and it shows you probably want summaries for columns 4 through 8.
+```{r summary stats for all parameters, results='hide'}
+
+summary((WQDataN[c(1:5605), c(4:8)]), na.rm=TRUE)
+```
+Method #1. This pulls only parameter data for the calendar year 2016 in the WQData sheet - but we had to look at the data sheet to see what rows covered 2016 (rows 64-270).
+```{r summary stats for all parameters over a time interval Method #1, results='hide'}
+
+summary(WQDataN[c(64:270),c(4:8)])
+```
+Method #2. We could use the Water Quality Year we already developed. Note that you do NOT put anything in front of the comma because the WQY2016 has already trimmed the WQData sheet to the rows in 2016. HOWEVER, WQY2016 data frame, and all Water Quality Year data frames, still see parameters as characters, not numeric, and won't perform the function until they are converted. I've placed the "summary" with a hashtag so it isn't run when the code chunk is run.
+
+You essentially need to re-generate all the Water Quality Years using the WQDataN data frame!  Ideally, we would have created the WQData data frame with numeric parameters before setting up the years we wanted to analyze.
+
+Run ONLY the first one (WQY2015) then check what that data frame looks like before running all the others in the chunk.
+```{r summary stats over a time interval Method #2, results='hide'}
+#This code won't work because WQY2016 was created with the data sheet that saw parameters as characters (not numbers), and R won't perform a function like summary statistics on characters.
+#summary(WQY2016[, c(4:8)])
+
+#Create water quality "years" with the data frame that has numeric parameters (WQDataN)
+WQY2015<-WQDataN%>%
+  dplyr::filter(Date<ymd(20160101))
+
+WQY2016<-WQDataN%>%
+  dplyr::filter(Date>ymd(20160430))%>%
+  dplyr::filter(Date<ymd(20170501))
+
+WQY2017<-WQDataN%>%
+  dplyr::filter(Date>ymd(20170430))%>%
+  dplyr::filter(Date<ymd(20180501))
+
+WQY2018<-WQDataN%>%
+  dplyr::filter(Date>ymd(20180430))%>%
+  dplyr::filter(Date<ymd(20190501))
+
+WQY2019<-WQDataN%>%
+  dplyr::filter(Date>ymd(20190430))%>%
+  dplyr::filter(Date<ymd(20200501))
+
+WQY2020<-WQDataN%>%
+  dplyr::filter(Date>ymd(20200430))%>%
+  dplyr::filter(Date<ymd(20210501))
+
+WQY2021<-WQDataN%>%
+  dplyr::filter(Date>ymd(20210430))%>%
+  dplyr::filter(Date<ymd(20220501))
+
+WQY2022<-WQDataN%>%
+  dplyr::filter(Date>ymd(20220430))%>%
+  dplyr::filter(Date<ymd(20230501))
+
+  summary(WQY2016[, c(4:8)])
+
+```
+NOW the summary for the Water Quality Year 2016 works!  Note that the Dissolved Oxygen doesn't have any data in the Summary Stats -- that is because in the year 2016, DO was only collected as "Percent", not as "mg/L".  We are recording "mg/L" now because that has a quantitative Alaska Water Quality criteria to measure against.
+
+### Compare summary stats of different years
+You may want to see if there are changes in one or all parameters from a historic trend. There ought to be a way to put past year statistics and current year statistics in a single table, but I haven't figured that out yet. Here we choose rows from the WQData set that run from the first sample event (September 2015) to the last day of Water Quality Year 2020 (April 30, 2020). Then we compare to Water Quality Year 2021 (May 1 2021 to April 30, 2022). 
+
+In the example below, we are seeking only SC, which is in column 7 of the data frame, and we choose different rows to distinguish the different time intervals.
+
+```{r compare current year SC to past set}
+#this goes from 2015 through WQY2020 (which are covered in the first 2,803 rows of the data frame) and looks at only SC, which is in the 7th column of the data frame.
+summary(WQDataN[c(1:2803),c(7)])
+
+#this is WQY2021 for SC only
+summary(WQDataN[c(2804:4108), c(7)])
+```
+
+This tells us that SC for WQY2021 was slightly higher than the historical trend, for all quantiles EXCEPT for the maximum, which was lower in WQY2021.
+
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+```
+::: blue
+:::
+
+
+# Making figures
+<br> 
+
+## Setting up data figures
+Data can be shown graphically in several ways, such as all parameters over different years or months at one site, or one parameter over several sites.  Before we get to making figures, let's look at setting up the information to be ready to create figures.
+
+### Put sample sites in order on a figure's x-axis
+The code below uses "factor" to say the order that you want sites to show on the x-axis of a graph. I like to show them from sites the most upstream in the watershed to the most downstream. I create a set called "LocationDown" that puts each site in order by the order in which they are placed within the parentheses.  I created a slightly different version, LocationDown21, with a new site that was added.  I also created a set with just the Moose Creek sites, in case I want to create figures with only Moose Creek.
+```{r Location sequences for figures}
+LocationDown<-factor(WQDataN$SiteID,c("CARCRK2.8", "HICCRK0.5", "PURCRK5.2", "CALCRK0.0", "CHIRVR2.3", "TSICHA44.6", "TSICHA49.0", "KINRVR0.1", "GRACRK0.3", "ESKCRK5.5", "ESKCRK1.7", "MOOCRK11.7", "MOOCRK6.6", "MOOCRK1.4","MOOCRK0.0", "MOOWTL0.0", "BUFCRK0.0", "KLESPR0.0", "WOLOTL1.7", "WOLCRK1.7" ))
+
+#A different set was used for water quality year 2021-2022 because a new site was added.
+LocationDown21<-factor(WQY2022$SiteID,c("CARCRK2.8", "HICCRK0.5", "PURCRK5.2", "CALCRK0.0", "CHIRVR2.3", "TSICHA44.6", "TSICHA49.0", "KINRVR0.1", "GRACRK0.3", "ESKCRK5.5", "ESKCRK1.7", "MOOCRK11.7", "MOOCRK6.6", "MOOCRK1.4","MOOCRK0.0", "MOOWTL0.0", "BUFCRK0.0", "KLESPR0.0", "WOLOTL1.7", "WOLCRK1.7" ))
+
+#this creates a set for just Moose Creek
+LocationMoose<-factor(WQDataN$SiteID, c("MOOCRK11.7", "MOOCRK6.6", "MOOCRK1.4","MOOCRK0.0"))
+```
+
+### Put months in order on a figure's x-axis
+This is not as easy as it sounds!  We want to split the "Date" column in the data frame to have a "Month" column.  Follow the steps below to create (mutate) the column and then populate it with abbreviated months.
+```{r Month sequences for figures}
+#This is how to set up a way to create graphs by month
+month<-c(1,2,3,4,5,6,7,8,9,10,11,12)
+month.abb[month]
+
+#you need to create a "Month" column in the data set. That means splitting the date and creating a new column using "mutate"
+WQDataN<-WQDataN %>% 
+  mutate(Month = month(Date))
+#Then say that you want months listed as abbreviations
+WQDataN$Month<-month.abb[WQDataN$Month]
+WQDataN_Month<-(WQDataN$Month)
+
+#Now you can create a "factor" to put months in sequence
+WQDataN_MonthSeq<-factor(WQDataN$Month, c("May","Jun","Jul","Aug","Sep", "Oct","Nov", "Dec", "Jan","Feb","Mar","Apr"))
+```
+
+### Place vertical or horizontal lines on a graph
+It is helpful for the reader to know when a point is outside guidelines for "good" water quality -- which here we define as good for cold-water fish. We call these "Project Action Limits" or PALs which mostly follow Alaska state water quality criteria.
+
+This can be done by setting up a table, or by showing visually how and where PALs are exceeded. The code chunk below places colored lines in graphs at key values. For example, lines for Temperature are set at 13C, 15C, and 20C.
+```{r Project Action Limits}
+#common to all data sets
+WQC_DO<-geom_hline(yintercept =7, color ="red")
+WQC_DO2<- geom_vline(xintercept=7, color="red")
+WQC_Temp1<-geom_hline(yintercept =13, color ="blue")
+WQC_Temp2<-geom_hline(yintercept =15, color ="dark green")
+WQC_Temp3<-geom_hline(yintercept =20, color ="red")
+WQC_pH1<-geom_hline(yintercept=6.5, color = "blue")
+WQC_pH2<-geom_hline(yintercept=8.5, color="red")
+WQC_turbidity<-geom_hline(yintercept=25, color="blue")
+WQC_SC<-geom_hline(yintercept=447, color="dark green")
+#note the SC is not actual water quality criteria, it just shows where the standard we usually use falls among the values
+#also turbidity is not actual water quality criteria, but line can show that many sites are very low NTU; PAL says turbidity should be within 25 NTU of natural waters.
+
+```
+
+<br>
+
+
+## Creating data figures
+This can be very satisfying! It requires a package called ggplot (make sure it is installed AND called in at "libraries"). Ggplot is a tremendous tool that allows for a lot of creativity in how you want to present your data.  Ggplot requires a data frame, an "aesthetic" (what to put on the x-axis and y-axis) and directions on what kind of figure to make (boxplot, points, etc.).  Those are required. The rest of the code (axis labels, titles, etc.) are added to make a nice figure, but aren't necessary for ggplot to run. It's worth spending a lot of time playing with ggplot options!
+
+This section describes how to show water quality parameters by location or by month at a single or multiple sites. 
+
+To create these, you need to make sure that the number of data points for temperature (or DO or other parameter you want to graph) is the same as the number of events for the year. By looking at the Environment pane, we can see "Water Quality Year 2022" has 1,497 "observations". "Temperature" has 5,605 observations, because it is based on the entire "WQData" worksheet.  So we need to make a "Temperature 2022" that will only capture the observations in WQY2022. If you don't do this, you will a) create a graph with the wrong data and b) a boxplot will show up for a "location" of "NA".
+
+**TIP:** The number of parameter points needs to match the number of observations over a time period.
+
+<br>
+
+### Stream temperature over time (one site)
+The code below provides codes to 
+* Tell R what site you want to analyze. Here we analyze the sampling site at Caribou Creek (site ID CARCRK2.8).  
+* Set up code to line months along the x-axis in the order that you want. If you don't use "factor" to list them in the order you want, they will automatically go on in alphabetical order (April, August, etc).
+* Set up code for parameters specific to the site you chose.
+
+```{r CARCRK parameters, results='hide'}
+##pull out Caribou Creek data from the main data set
+CARCRK<-subset(WQDataN,SiteID=="CARCRK2.8")
+
+#set up site for parameters by month. Note that the 3 lines of code may need to be precisely what is listed here.
+month<-c(1,2,3,4,5,6,7,8,9,10,11,12)
+CARCRK_Month<-(CARCRK$Month)
+CARCRK_MonthSeq<-factor(CARCRK$Month, c("May","Jun","Jul","Aug","Sep", "Oct","Nov", "Dec", "Jan","Feb","Mar","Apr"))
+
+#set up parameters for site. Once this is done, you can graph any or all of them.
+CARCRK_Turb<-as.numeric(CARCRK$`Turbidity (NTU)`)
+
+CARCRK_SC<-as.numeric(CARCRK$`Specific conductance (µS/cm)`)
+
+CARCRK_Temp<-as.numeric(CARCRK$`Temperature (C)`)
+
+CARCRK_DO<-as.numeric(CARCRK$`Dissolved oxygen (mg/L)`)
+
+CARCRK_pH<-as.numeric(CARCRK$pH)
+```
+
+Now write the ggplot code, telling R the data you want to use and what you want on the x and y axes. If you like, try using only the data= and aes= and geom_boxplot and remove everything else and see what it looks like.  Add ylim (the length of the y-axis), title, subtitle back in. Play with the angle and font size of text on the axes with "theme".  Try replacing geom_boxplot with geom_point.
+
+```{r CARCRK temperatures over time}
+#Stream temperatures at one location for all years - call in the site data (CARCRK) and the parameters associated with the site
+ggplot(data=CARCRK)+aes(x=CARCRK_MonthSeq,y=CARCRK_Temp)+geom_boxplot()+ylim(-5, 25)+xlab("")+ylab("Temperature, C")+ggtitle("Caribou Creek Temperatures", subtitle= "by Month, Sep 2015-Apr 2022")+theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+theme(title = element_text(size=14))
+```
+
+What if we want to show the temperatures at which fish get stressed? This is where we use the PAL set that we created.  Add WQC_Temp1, WQC_Temp2, and/or WQC_Temp3 to the code.
+
+```{r CARCRK temperatures with PAL limits}
+#Stream temperatures at one location for all years - call in the site data (CARCRK) and the parameters associated with the site
+ggplot(data=CARCRK)+aes(x=CARCRK_MonthSeq,y=CARCRK_Temp)+geom_boxplot()+ylim(-5, 25)+xlab("")+ylab("Temperature, C")+ggtitle("Caribou Creek Temperatures", subtitle= "by Month, Sep 2015-Apr 2022")+theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+theme(title = element_text(size=14))+
+  WQC_Temp1+WQC_Temp2+WQC_Temp3
+```
+
+### Stream temperatures over time (all locations)
+Below we look at how to show a parameter over time at all sampling sites.  When we set up the code, it seems like we should be able to use the "WQData_MonthSeq" that we set up, since there are always going to be 12 months regardless of whether we want to look at all years or a single year. But R won't let us do that! It fails if you try to run the code chunk.
+
+I ended up needing to create a set of "months" specific to Water Quality Year 2022! This kind of thing happens in R -- that's when it helps to reach out to one of the sources listed in the beginning.
+
+We can choose all years by selecting "data=WQDataN" in the ggplot, or we can select a single year, such as Water Quality Year 2022 by selecting "data=WQY2022" in the ggplot.
+
+**Figure: Stream temperatures by month over all years**
+This code uses the full data set for data, x, and y parametersl It includes the lines for water quality criteria for temperatures.
+```{r Figure Temp x Month for all years}
+
+#Stream temperatures by month for all years
+ggplot(data=WQDataN)+aes(x=WQDataN_MonthSeq,y=Temp)+geom_boxplot()+ylim(-5, 25)+xlab("")+ylab("Temperature, C")+ggtitle("Temperature", subtitle= "by Month, Sep 2015-April 2022")+theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+theme(title = element_text(size=14))+
+  WQC_Temp1+WQC_Temp2+WQC_Temp3
+```
+
+**Figure: Stream temperatures by month for one year**
+The code includes the steps to set up the months in order on the x-axis, creates a "Temperature" code specific to the water quality year 2022, and creates the ggplot using data, x, and y parameters specific to water quality year 2022.
+```{r Figure Temp x Month for 1 year}
+#Create a "month sequence" for the single year
+month.abb[month]
+WQY2022<-WQY2022%>%
+  mutate(Month=month(Date))
+WQY2022$Month<-month.abb[WQY2022$Month]
+WQY2022_MonthSeq<-factor(WQY2022$Month, c("May","Jun","Jul","Aug","Sep", "Oct","Nov", "Dec", "Jan","Feb","Mar","Apr"))
+
+#Use the WQY2022 that you created, and make a Temp_2022
+Temp_2022<-WQY2022$`Temperature (C)`
+
+#Stream temperatures by month for WQY2022 -- choose data=, x=, and y= relevant to the single year of interest
+ggplot(data=WQY2022)+aes(x=WQY2022_MonthSeq,y=Temp_2022)+geom_boxplot()+ylim(-5, 25)+xlab("")+ylab("Temperature, C")+ggtitle("Temperature", subtitle= "by Month, May 2021-April 2022")+theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+theme(title = element_text(size=14))+
+  WQC_Temp1+WQC_Temp2+WQC_Temp3
+
+```
+
+As expected, there is more temperature variability over a long time period than a short one!
+
+### Stream temperatures by location (all sites)
+Just as you had to code to tell R the order you wanted months to be shown on the x-axis, you need to tell R how you want the locations to be listed.  I always think of sites as "upstream to downstream", and we earlier created "LocationDown" and "LocationDown21" to put locations in upstream to downstream sequence for either all years or Water Quality Years from 2021 on (in which there was a new site).
+
+Why will R recognize the 18 or 19 sites regardless of whether we plot all dates or a single year -- but we have to create a new set of 12 months for a single year? Who knows?!!
+
+**Figure: Stream temperatures by location (all sites)**
+```{r Figure Temp x Location for 1 year, results = 'hide'}
+
+#Use the WQY2022 that you created, and make a Temp_2022
+Temp_2022<-WQY2022$`Temperature (C)`
+
+#Stream temperatures by location for WQY2022
+ggplot(data=WQY2022)+ aes(x=LocationDown21, y=Temp_2022) +geom_boxplot()+ylim(-5, 25)+xlab("")+ ylab("Temperature, C")+ggtitle("Temperature", subtitle= "by Location, May 2021-April 2022")+theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+theme(title = element_text(size=14))+
+  WQC_Temp1+WQC_Temp2+WQC_Temp3
+```
+
+Note that in the figure above, the TSICHA sites have very little variability -- but that is due to a small number of sample events, not because of actual low variability. What we don't have on the graph is an "n" that tells us how many events went into creating the boxplot for each location.
+
+We repeat the process for dissolved oxygen, but this time we want to put the figures side by side in the printout. The "fig.show" combined with the width setting inside the {r} quotations will let two plots sit side by side if your code chunk runs two plots.
+
+### Placing figures side by side
+Note that the water quality criteria line for DO is shown on the figures.
+```{r Figure DO x Location, Month, fig.show='hold', out.width='50%'}
+
+#The "fig.show" combined with the width setting will let two plots sit side by side if your code chunk runs two plots.
+
+DO_2022<-WQY2022$`Dissolved oxygen (mg/L)`
+
+#Dissolved oxygen by location for 2022
+ggplot(data=WQY2022)+ aes(x=LocationDown21, y=DO_2022) +geom_boxplot()+ylim(0, 16)+xlab("")+ylab("Dissolved oxygen, mg/L")+ggtitle("Dissolved oxygen", subtitle= "by Location, May 2022-April 2023")+theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+theme(title = element_text(size=14))+
+  WQC_DO
+
+#Dissolved oxygen by month for 2022
+ggplot(data=WQY2022)+ aes(x=WQY2022_MonthSeq, y=DO_2022) +geom_boxplot()+ylim(0, 16)+xlab("")+ylab("Dissolved oxygen, mg/L")+ggtitle("Dissolved oxygen", subtitle= "by Month, May 2022-April 2023")+theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+theme(title = element_text(size=14))+
+  WQC_DO
+
+```
+
+### Comparing pH over different time blocks
+
+We already looked at comparing "summary statistics" over different time blocks. What if you want to see if the past year's pH (or other parameter) has a different pattern from the historical set?  You can set this up using tools you already know.
+
+By putting both plots in one code chunk, both will show when the chunk is run.  If you want them side by side, use "fig.show=hold" and "out.width". If you want to cut and paste the images, right click on the image and copy.
+
+<br>
+**Figure: Comparison of pH by month, 2015-2019, and pH in WQY 2022**
+```{r pH by month over several years, fig.show='hold', out.width='50%'}
+
+#Define the date range of interest
+
+WQY2015_2019<-WQDataN%>%
+  dplyr::filter(Date>ymd(20150903))%>%
+  dplyr::filter(Date<ymd(20200501))
+
+#Make sure the pH is numeric
+WQY_pH<-as.numeric(WQY2015_2019$pH)
+
+#Set up the sequence of months
+month.abb[month]
+WQY2015_2019<-WQY2015_2019%>%
+  mutate(Month=month(Date))
+WQY2015_2019$Month<-month.abb[WQY2015_2019$Month]
+WQY_MonthSeq<-factor(WQY2015_2019$Month, c("May","Jun","Jul","Aug","Sep", "Oct","Nov", "Dec", "Jan","Feb","Mar","Apr"))
+
+#Plot pH over the date interval
+ggplot(data=WQY2015_2019)+aes(x=WQY_MonthSeq, y=WQY_pH)+
+  geom_boxplot()+
+  ylim(4,10)+
+  xlab("")+ylab("pH")+
+  ggtitle("pH", subtitle= "by Month, Sep 2015-Apr 2020")+
+  theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+
+  theme(title = element_text(size=14))+
+  WQC_pH1+WQC_pH2
+
+#We have already defined the WQY2022_MonthSeq, but we need to define the WQY pH
+
+WQY2022_pH<-as.numeric(WQY2022$pH)
+
+#Plot pH over a different date interval
+ggplot(data=WQY2022)+aes(x=WQY2022_MonthSeq, y=WQY2022_pH)+
+  geom_boxplot()+
+  ylim(4,10)+
+  xlab("")+ylab("pH")+
+  ggtitle("pH", subtitle= "by Month, May 2022-Apr 2023")+
+  theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+
+  theme(title = element_text(size=14))+
+  WQC_pH1+WQC_pH2
+
+```
+
+Notice that in the set of earlier years, pH was over 8.5 at least once in every month May-September, but in Water Quality Year 2022, it only exceeded in April. This is the type of difference that a comparison of historical versus a current year might pick up.
+
+### Comparing two parameters
+In the following figure, we compare two different parameters to look for a relationship in a graphical way, rather than calculating a statistical relationship.
+
+**Figure: Comparing two parameters, Graph #1**
+```{r Figure TempxDO Image, fig.show='hold', out.width='50%', results='hide'}
+
+#note that we want a POINT plot (geom_point), not a box plot for this
+ggplot(data=WQY2022)+ aes(x=Temp_2022, y=DO_2022) +geom_point()+ylim(0, 16)+xlab("Temperature (C)")+ylab("Dissolved oxygen, mg/L")+ggtitle("Temperature and Dissolved oxygen", subtitle= "May 2022-April 2023")+theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+theme(title = element_text(size=14))
+```
+<br>
+
+What if we want to add the PAL lines?
+
+Note that we need the Temperature PAL lines to be vertical, not horizontal, and the DO line (coded as WQC_DO2) to be horizontal (to intercept the y-axis of DO). The direction of the line is controlled by "geom_hline" or "geom_vline" for horizontal or vertical.
+
+**Figure: Comparing two parameters, Graph #2**
+```{r Switch PAL lines from horizontal to vertical}
+
+#Switch from hline and yintercept to vline and xintercept
+WQC_DO<- geom_hline(yintercept=7, color="red")
+WQC_Temp1b<-geom_vline(xintercept =13, color ="blue")
+WQC_Temp2b<-geom_vline(xintercept =15, color ="dark green")
+WQC_Temp3b<-geom_vline(xintercept =20, color ="red")
+
+#Now try running the code again
+ggplot(data=WQY2022)+ aes(x=Temp_2022, y=DO_2022) +geom_point()+ylim(0, 16)+xlab("Temperature (C)")+ylab("Dissolved oxygen, mg/L")+ggtitle("Temperature and Dissolved oxygen", subtitle= "May 2022-April 2023")+theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+theme(title = element_text(size=14))+
+  WQC_DO+WQC_Temp1b+WQC_Temp2b+WQC_Temp3b
+```
+
+
+We could also switch parameters by putting DO on the x-axis and Temp on the y-axis. Remember to change your x and y limits and axis titles in the code chunk.
+
+**Comparing parameters, Graph #3**
+```{r switch parameters on axes}
+ggplot(data=WQY2022)+ aes(x=DO_2022, y=Temp_2022) +geom_point()+ylim(0, 25)+xlab("Dissolved oxygen, mg/L")+ylab("Temperature (C)")+ggtitle("Temperature and Dissolved oxygen", subtitle= "May 2022-April 2023")+theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))+
+  theme(axis.text=element_text(size=12))+theme(title = element_text(size=14))+
+  WQC_DO2+WQC_Temp1+WQC_Temp2+WQC_Temp3
+```
+
+
+Note that in the figure above (Graph #3), points left of the vertical red line are measurements of oxygen that are lower than desired for fish; all were at the site WOLOTL1.7 in winter, the site on a small tributary that is the outlet of Wolverine Lake.  Points above the horizontal blue line are measurements of temperature that is higher than desired for fish; the points above this line were collected at site WOLOTL1.7 in summer. Two points were both below desired oxygen AND above 20c - this is a potentially lethal situation for cold-water fish.
+
+<br>
+
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+```
+::: blue
+:::
+
+# Adding photos
+
+<br> 
+
+If we want to add an image (jpeg, png), make sure the image is in your "Images" folder, then call it in through "image_dir" and the name of the png. Use knitr in a code chunk. 
+* fig.align is how you set where you want the photo on the page
+* out.width and out.height is how you set the size of the photo
+* fig.cap is where you provide the caption.
+
+The image will show immediately below the chunk, and will also "knit" into the final html document. Use <br> before and after the image, or text might overflow around part of the image. I have not figured out how to control the wrap to be placed in a way that I want. Making the html document larger or smaller on the screen will change whether text overflows around an image.
+
+<br>
+**Figure: Turbidity image**
+```{r Turbidity pic, fig.align='right', fig.cap="Turbidity at a clearwater river channel after the Matanuska River braided into it", out.width='25%', out.height='25%'}
+
+knitr::include_graphics(paste0(image_dir,"TSICH 44.6 turbidity.JPG"))
+```
+<br>
+
+What if we want to add two photos side by side, as we did with the figures? That's a lot harder! 
+
+### Placing photos side by side
+In the first method, we use the knitr function. This comes out pretty well in the final document, but the photos are right next to each other, with no border to distinguish them. You'll need to "knit" the document to see this.  
+
+**Figure: Side by side photos, Method #1**
+```{r CARCR Photo knit, fig.show='hold', out.width='45%'}
+
+knitr::include_graphics(paste0(image_dir, "CARCR Jun2022.JPG"))
+knitr::include_graphics(paste0(image_dir, "CARCR Jan2023.jpg"))
+```
+
+In another method, we use "ggdraw". It creates a distinction between the photos, but it is slow and the borders come out very big. 
+
+In ggdraw, you decide where to place the image by defining the "x" (distance from the left hand side of the page).  The "x" of the right hand photo must be larger than the x+width of the left hand photo, or else the photos will overlap.
+
+**Figure: Side by side photos, Method #2**
+```{r CARCR Photo draw, fig.align='center'}
+
+#Remember that you set up a folder to hold photos and images
+image_dir <- paste0(base_dir,"/Images/")
+
+#check that the photo(s) you want are in that folder, then copy the photo name exactly, between quotation marks
+CARPhoto1<-paste0(image_dir,"CARCR Jun2022.JPG")
+CARPhoto2<-paste0(image_dir,"CARCR Jan2023.jpg")
+ggdraw()+
+  draw_image(CARPhoto1, width=0.47, x=0.05)+
+  draw_image(CARPhoto2, width=0.4, x=0.55)
+```
+
+**TIP:** If you import a vertical and a horizontal photo, adjust the widths of each until they look proportional.
+
+<br>
+
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+```
+::: blue
+:::
+
+# Making tables
+
+<br>
+
+## How to make a table, method #1
+One thing you might include in an introductory section might be a table that shows your sampling locations.  There are several ways to make tables. Below is an example of a way to create a table of items that are NOT already in any of your data frames.
+
+This method is to write the column headers between bars |. You will only be able to see how it is done by looking at the code; it won't show in the html document.
+
+There MUST be an empty line above the column headers or they won't come out as headers, and the bars need to be before and after every column name. To define how wide each column will be, you must use a bar, colon, and dashes. the more dashes, the wider the column. Finally you fill in what is to go in each column. You must have bars | before and after each entry. The location of the colon, to the left or right between the bars, is how you code to align the characters or values to be left- or right-aligned in the column. 
+
+<br>
+
+**Table: Data logger sites**
+<br>
+
+|Site Name| Site ID|Data loggers|Purpose|
+|:----|---:|:----|:--------|
+|Buffalo Creek|BUFCRK 0.1|Temperature (tidbit), Conductivity/Temperature|To collect summer data/ Potential for coal mining impacts to creek|
+|Moose Creek mouth|MOOCRK 0.1|Temperature (tidbit), Conductivity/Temperature|For more winter data/ Potential for coal mining impacts to stream|
+|Wolverine Lake Outlet|WOLOTL 1.8|Temperature (tidbit), Conductivity/Temperature, Dissolved oxygen|For more summer temperature and winter oxygen data|
+<br>
+
+## How to make a table, method #2
+If your information is already in one of your data frames, then you can draw it out and make a table using "kable" or "flextable".  For kable, you need to let R know that you want the table "knit" in kable using the knitr:: function.
+
+Here we use the "Locations" data frame that we created earlier from our base WQData data frame. Select only a few columns of interest for the table. 
+
+
+```{r Locations set up for Table #2}
+
+#We already created a "Locations" data frame. Use this to start with, then select only a few columns of interest for the table.
+Locations%>%
+  dplyr::select(SiteName, SiteID, Latitude, Longitude)
+
+#Lets name it something different than our original "Locations". This means we need to come up with a name (left side) and put a symbol <- before the data frame and function.
+LocationCoord<-Locations%>%
+  dplyr::select(SiteName, SiteID, Latitude, Longitude)
+
+#We could also have used the WQData frame, but remember in that one each site had several slightly different coordinates because they reflected the GPS readings taken at every visit.  The code is shown with a hashtag to make sure it is not run when the code chunk is run.  If R tries to run it and fails, we won't be able to knit the document!
+#WQData%>%dplyr::select(SiteName, SiteID, Latitude, Longitude)
+```
+
+When we make the table, we provide some bells and whistles, such as a title and telling kable that we want the table to have alternating colored and white rows ("Striping"). For more options, go to the "Files, Plots, Packages" pane and open the "Help" tab. Type in kable (or kableExtra) and it will show you some options!
+```{r Locations Table #2}
+#Create and view table with "kable"
+options(knitr.kable.NA='')
+
+LocationCoord%>%
+  kable(format = "html",escape = FALSE,  caption="Sampling Site Coordinates") %>%
+  kable_styling %>% 
+  kable_styling("striped", full_width = F)
+
+```
+
+The third method is "flextable" - again, type in "flextable" in the "Help" tab to see some options.
+```{r Locations, Table #3}
+#Create a basic flextable
+flextable(LocationCoord)
+
+#add a theme if you want - you need to "name" the flextable before adding the theme
+flexLoc<-flextable(LocationCoord)
+flexLoc<-(theme_vanilla(flexLoc))
+flexLoc
+
+#try another theme
+flexLoc<-theme_zebra(flexLoc,odd_body = "lightblue", even_body = "transparent")
+flexLoc
+
+```
+
+How cool is that!
+
+<br>
+
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+```
+::: blue
+:::
+
+# Making maps
+
+<br> 
+
+This is one of the best parts of R, and why it's fun to create it in html -- the ability to make maps, including interactive maps, without ever needing to use ArcGIS. There is so much you can do with maps! I'll bet if you can do it in ArcGIS, you can do it in R - and it's free and doesn't require internet!
+
+This section has a lot of coding, but it mostly repeats a few steps
+<br>
+- Call in shapefiles and any Excel data with locations of interest
+- Use "filter" to get the map to focus on your area of interest, instead of the entire state
+- Code for a map with the layers of interest
+<br>
+
+This walks through how to make a watershed map and add your sampling sites, towns, and anadromous waters to it.  And how cool is THAT! 
+
+## Call in shapefiles
+So, do you know how to call in a shapefile? There is a lot of free material available from federal agencies, state agencies, and boroughs/counties.  Try search engines to find some that might interest you. Although it is files with the ending .shp that is of interest, you usually have to pull in an entire folder (which might have files with endings like .prj, .shx, .dbf, etc.)
+
+When you find a folder of interest, put it in your "Shapefiles" folder, one of your three main folders.
+
+Here we will use shapefiles from USGS to get watershed boundaries, shapefiles from the state for anadromous waters and towns, and from an Excel sheet for sampling site locations. In my main folder, I have the following stored
+<br>
+- in Shapefiles folder, there are folders called "Boroughs", "AWC Southcentral", and "NHD_H_19020402_HU8_Shape.  I could certainly rename them with shorter names!
+- in Data folder, there is an Excel worksheet called "WQ locations for 2023 report".  I could pull locations from the big WQData Excel sheet, but the coordinates for each site are taken on the site at each visit and vary. So it is easier to create a list with specific coordinates tied to each site.
+<br>
+
+This shows the sequence of calling in the main folder(s), the subfolder(s), and specific shapefiles within them. The names on the left ("watershed_dir" etc.) are ones that you create in a way that makes it easy for you to remember and handle them.
+
+```{r call in shapefiles to make maps, results='hide'}
+
+#Remember that you already created a "directory" that ties to the Shapefiles main folder
+shape_dir<- paste0(base_dir,"/Shapefiles/")
+
+#There are subfolders within the main folder. Create short names (watershed_dir, AWC_dir, etc) for subfolders. Note that you MUST put a period in front of the / for this to work.
+Watershed_dir<-paste0(shape_dir,"./NHD_H_19020402_HU8_Shape/Shape/")
+AWC_dir<-paste0(shape_dir, "./AWC Southcentral/")
+MSB_dir<-paste0(shape_dir, "./Boroughs/")
+
+#There are shapefiles inside the subfolders. Call out specific shapefiles. The names on the left are ones you create. Note that you MuST use quotation marks around the shapefile name for this to work.
+MatWshdHUC10 <- sf::read_sf(paste0(Watershed_dir,'WBDHU10.shp'))
+Towns<-sf::read_sf(paste0(MSB_dir, 'Towns_Pt.shp'))
+AWC1<-sf::read_sf(paste0(AWC_dir, "scn_point.shp"))
+AWC2<-sf::read_sf(paste0(AWC_dir, "scn_stream.shp"))
+           
+#compare to calling out a specific Excel from the Data folder - above is read_sf while data is read_xlsx
+WQStandards <- read_xlsx(paste0(data_dir,"WQ standards.xlsx"))
+```
+
+**TIP:** Syntax matters! The base directory requires the pattern "/NAME/", the subfolders require the pattern "./NAME/", and the shapefile requires the pattern "NAME.shp".
+
+**TIP:** To call in a specific document, like an Excel workbook or a file ending in .shp, you need to use (paste0).
+
+Once you've done everything above, you will have some new blue icons in the Environment pane: MatWshdA, USGSWBD, Towns, AWC, and AWC2.
+
+Click on one of these icons. It will show up on top of the writing pane as a data frame! Look to see where the coordinates are in the data frame. Data that are points usually have columns for Latitude and Longitude. Data that are polygons usually have a column named "geometry". This becomes important if you want to trim the shapefile to focus on a specific area.
+
+## Create a watershed map!
+Here is one of those visually satisfying things that makes the R struggle worthwile. 
+
+You already called in the USGS shapefile of HUC 10 watersheds for the Matanuska area (HUC 8 area 19020402).  Use "mapview" to view what you made.
+
+**Map: Simple map of watershed boundaries**
+```{r map the Matanuska river basins, results='hide'}
+
+#Remember that you already called in the HUC0 watersheds for the Matanuska River area 
+MatWshdHUC10 <- sf::read_sf(paste0(Watershed_dir,'WBDHU10.shp'))
+
+#This creates some base layer maps
+mapviewOptions(basemaps = c("Esri.WorldImagery", "OpenStreetMap"),
+               layers.control.pos = "topleft")
+
+#This lets you view the map
+mapview(MatWshdHUC10, layer.name = "River Basins")
+
+```
+
+Let's add to the map. You can say whether you want a legend, whether you want the HUC10 shapes to be in a color, how thick you want the boundaries between watersheds, and the name of the layer. If you want the names of the watersheds to show when you hover over the map, use the term popup="name" in the mapview code.
+
+```{r Color and name the map layer}
+#view the map. 
+mapview(MatWshdHUC10, legend = FALSE, col.regions = "#99CCFF", alpha.regions = 0.4, homebutton = FALSE,layer.name = "River Basins", popup = "name")
+
+#give a name to the mapview to use later
+MatWshd10map<-mapview(MatWshdHUC10, legend = FALSE, col.regions = "#99CCFF", alpha.regions = 0.4, homebutton = FALSE,layer.name = "River Basins", popup = "name")
+```
+
+You can have the subwatersheds show up as different colors using colorRamp. You need to use "zcol" to tell R what to base the different colors on. "Zcol" must be exactly the name that is the column header in the data frame. Open the MatWshdHUC10 data frame to see the choice of column headers.
+
+Below we code for the map to:
+
+- Base colors on the name of the subwatershed. 
+- Base colors on the size of the subwatershed. 
+- If you want every subwatershed to be a slightly different color, use (12) for the 12 subwatersheds. If you want only a few colors, use a lower number.
+
+**Map:  Watershed color based on name or size**
+```{r Multicolors for subwatersheds}
+#Map with colors based on watershed name
+mapview(MatWshdHUC10, zcol="name", col.regions=(colorRampPalette(c("snow","cornflowerblue"))(12)), layer.name="Watersheds (HUC10)")
+
+#Map with colors based on watershed size
+mapview(MatWshdHUC10, zcol="areasqkm", col.regions=(colorRampPalette(c("snow","cornflowerblue"))(12)), layer.name="Watersheds (HUC10)")
+
+#if this is something you want to map in the multi-layer map, give it a name to easily call in this specific set of colors etc.
+```
+
+**TIP:** Zcol tells R what to perform an action on in a map.
+
+**TIP:** What is identified in the zcol must be in quotes and must be the exact column header. If your header is "name" and you put zcol="NAME", it won't work; it needs to be zcol="name".
+
+
+### Trim Anadromous Waters shapefile to a specific area: using filter, grepl, and rbind
+The state has shapefiles of anadromous waters -- both for streams and for the specific points where fish were documented.  But you may want to focus on a specific region.  
+
+In the codes below, we use latitude and longitude columns to trim the state's anadromous waters (points) shapefile to show only the anadromous waters in the Matanuska River watershed.  The first method uses "grepl" and "rbind". Note that we use piping again, to say "from this big data set of AWC1, do the action 'filter'". There may be other ways to do this.
+
+The longitudes in the Matanuska watershed run from -147.6 to 149.1.  We use the term "grepl" and an asterisk to say "capture anything that starts with -147.6". I have created the name "AWC147" as an easy way to remember and call in the filtered product later. The process is repeated for more longitudes.
+
+Rbind is used to combine the different named longitude sets.
+
+```{r filter AWC point longitude method #1, results='hide'}
+#AWC shapefiles have either "points" (the specific locations where anadromous fish were documented) or "streams" (the stream reach between points). This method filters AWC points by longitude. The longitudes in the Matanuska watershed run from -147.6 to 149.1.  
+
+#Below we use the term "grepl" and an asterisk, which says "capture anything that starts with -147.6". I have created the name "AWC147" as an easy way to remember and call in the filtered product later.
+
+AWC147<-AWC1%>%
+  dplyr::filter(grepl("*-147.6", LONGITUDE))
+
+#define additional longitudes within the Matanuska or area of interest
+AWC148<-AWC1%>%
+  dplyr::filter(grepl("*-148", LONGITUDE))
+
+AWC149<-AWC1%>%
+  dplyr::filter(grepl("*-149.1", LONGITUDE))
+
+AWC150<-AWC1%>%
+  dplyr::filter(grepl("*-150", LONGITUDE))
+
+#use rbind to put together -147, -148 and -149, which are the ones in the Matanuska watershed. the -150 covers part of the Susitna watershed, so include that if it is of interest.
+MatAWC_longitude<-rbind(AWC147, AWC148, AWC149)
+```
+
+The second method is a much shorter code. It says first remove anything that is bigger than longitude -149.1.  Then remove anything that is less than longitude -147.6. What is left is the longitudes that encompass the Matanuska River watershed.  Note that the order of piping can be important.
+
+```{r filter AWC point longitude method #2, results='hide'}
+
+#Longitudes can be limited by filtering a range; however because they have a negative sign in front of them, R interprets <-147.6 as having a symbol <- and rejects the code as nonsense unless it is placed within a set of parentheses
+MatAWC_longitude<-AWC1%>%
+  dplyr::filter(LONGITUDE>-149.1)%>%
+  dplyr::filter(LONGITUDE<(-147.6))
+```
+
+**TIP:** grepl can capture a set of items in a column
+
+**TIP:** rbind can combine named sets of observations
+
+**TIP:** Pay attention to inadvertently creating code syntax that could be interpreted as a symbol.
+
+Once you've trimmed the area by longitude, then you need to trim it by latitude. Here the "grepl" method did NOT work but the dplyr::filter without grepl did work.
+
+```{r filter AWC point latitude methods, results='hide'}
+
+#note that this attempt to limit by latitude, using grepl("*61.6) does NOT work; it filters mostly 61.6 but includes some odd things like 59.3 and 60.4
+AWC61.6<-AWC1%>%
+  dplyr::filter(grepl("*61.6", LATITUDE))
+
+#this DOES work to capture latitudes between 61.6 and 61.9 within the area we already trimmed by longitude
+AWCpoint_Mat<-MatAWC_longitude%>%
+  dplyr::filter(LATITUDE>61.6)%>%
+  dplyr::filter(LATITUDE<61.9)
+
+```
+
+
+What do you do if you don't have latitude and longitude columns?!
+
+Streams are polygons with a "geometry" instead of points. There are no "latitude" or "longitude" columns. To limit to a specific area, like the Matanuska River watershed, you need to see if there are any columns that could be useful in narrowing down the latitude.  
+
+Open up the AWC2 data frame.  We will try using AWC codes. By reviewing AWC codes of specific streams, it looked like all Matanuska streams were in AWC codes 247-50, 247-60, or 247-41 codes.  After mapping, it looked like all Matanuska watershed streams were in 247-50 and Susitna in 247-41 and 247-60 is maybe the Knik area. 
+
+Look how filter and grepl come up again!
+
+```{r filter AWC streams}
+
+AWC_Mat<-AWC2%>%
+  dplyr::filter(grepl("*247-50-102", AWC_CODE))
+
+AWC_Knik<-AWC2%>%
+  dplyr::filter(grepl("*247-60", AWC_CODE))
+
+AWC_Su<-AWC2%>%
+  dplyr::filter(grepl("*247-41", AWC_CODE))
+
+```
+
+
+**Map: Anadromous streams in the Matanuska River basin
+```{r Anadromous Streams map}
+#Here we say that we want streams to be in the color of "cornflower blue" and we give the layer a name.
+mapview(MatWshdHUC10,  col.regions = "#F0FFFF", layer.name="Watersheds (HUC10)") + mapview(AWC_Mat, color="blue", layer.name="Anadromous streams")
+```
+
+### Add a map layer of towns
+Let's add some towns so people can quickly orient themselves. Note that we include Wasilla, which is outside the Matanuska River basin, and unfortunately, our shapefile data does not have Glacier View which is well within the basin!
+
+**Map: Matanuska River towns**
+```{r MSB towns}
+#This creates some base layer maps
+mapviewOptions(basemaps = c("Esri.WorldImagery", "OpenStreetMap"),
+               layers.control.pos = "topleft")
+
+#Remember that you already pulled in a shapefile that you called "Towns"
+Towns<-sf::read_sf(paste0(MSB_dir, 'Towns_Pt.shp'))
+
+#Now choose the towns that you want to show on the map
+MSBTowns<-subset(Towns, Towns$NAME%in% c("Chickaloon", "Sutton", "Palmer", "Wasilla"))
+
+#Below are some ways to show the towns.  1) As red dots with no labels. 2) As colored dots based on population.
+mapview(MSBTowns, alpha.regions=0.4, col.regions="red", layer.name="Towns", cex=5)+MatWshd10map
+             
+mapview(MSBTowns, zcol="POP", layer.name="Towns") + MatWshd10map
+```
+
+**TIP:** cex is how you control the size of the dots
+
+**TIP:** col.regions is how you control the color of the dots
+
+**TIP:** zcol is how you control what you want in a legend
+
+If you name the mapviews, it makes it easy to call in one view (without populations) or the other (with populations) in a map layer.  Below, adding the "TownMap" layer will add towns that are small (cex=3) red dots with a layer called "Towns" and adding the "TownPopMap" will add towns as colored dots based on population in a layer named "Town Populations". 
+
+```{r naming Town mapviews}
+
+TownMap<-mapview(MSBTowns, alpha.regions=0.4, col.regions="red", layer.name="Towns", cex=3)
+
+TownPopMap<-mapview(MSBTowns, zcol="POP", layer.name="Town Populations")
+```
+
+To place the TownMap on the watersheds and anadromous waters map, add it with "+"
+
+**Map: Matanuska River basin towns and anadromous streams**
+```{r}
+mapview(MatWshdHUC10,  col.regions = "#F0FFFF", layer.name="Watersheds (HUC10)") + mapview(AWC_Mat, color="blue", layer.name="Anadromous streams") + TownMap
+```
+
+Well that would be more useful if the towns were against a base map and labeled with their names. Labeling the town names can be surprisingly difficult!
+```{r labeling towns with names}
+#This puts the names of towns on the map, but it won't add any points where the towns are
+
+leaflet(MSBTowns) %>% 
+  addStaticLabels(., label=MSBTowns$NAME)
+
+#This places circles with the towns labeled - but I have not found a way to make the circles smaller or change their color.  It is surprisingly difficult to find a way to label points if there is no lat-long column!
+leaflet(MSBTowns)%>%
+  addProviderTiles("OpenStreetMap")%>%
+  addFeatures()%>%
+  addStaticLabels(label=MSBTowns$NAME, style=list("font-weight"="bold"),  offset=c(5,-8))
+  
+```
+
+The best way to put labels on points is to create an Excel or csv sheet with a column for the point name (town name, sample site name, etc) and columns for latitudes and longitudes. 
+```{r label points}
+#If you open the MSBTowns data set, the "geometry" column has the specific latitude and longitude for each town. YOu can copy/paste this into a new Excel or csv and call in that new worksheet. I called my worksheet "TownLocations" and I used the same name to identify it when I called it in
+
+TownLocations<-read_xlsx(paste0(data_dir,"TownLocations.xlsx"))
+
+#Now when you open "TownLocations", you'll see the same dataframe as "MSBTowns" except it now has Latitude and Longitude instead of a "geometry" column
+```
+
+### Add a map layer of sample site locations
+Let's look at adding a single site, and adding all sample sites, to a watershed map.
+
+If we want to map points, they must have a coordinate system like Latitude and Longitude. The coordinates I took used the NAD83 system, so that is included in the setup.
+
+```{r Set up one site to map}
+
+#Pull your location of interest out of a data frame. Since we already have the "Locations" data frame, we can use that. We ONLY want the coordinates this time, so let's provide a name for the site coordinates.
+CARCRKxy<-Locations%>%
+  dplyr::filter(SiteID=="CARCRK2.8")%>%
+  dplyr::select(Latitude, Longitude)
+
+#then we need all the stuff on the right hand of the <- to tell R to map it.
+CARCRKSite <- st_as_sf(x = CARCRKxy, 
+                      coords = c("Longitude", "Latitude"),
+             crs = "+proj=longlat +datum=NAD83")
+```
+
+Now you want to create a "map layer" of your site (or sites) and show it on the map. You may want to have your sample site show up on a map as a specific color or size. 
+
+**Map: One sample site**
+```{r mapping site locations}
+#If you want CARCRKSite on a map layer, you don't need to do anything - only use "+ CARCRKSite" when you develop the map. However, if you want to define the size or color of the marker, you may want to define that in "mapview". Below, cex defines the size of the marker and col.regions lets you change the color.
+
+mapviewOptions(basemaps = c("Esri.WorldImagery", "OpenStreetMap"),
+               layers.control.pos = "topleft")
+
+mapview(CARCRKSite,
+                 col.regions="black",
+                 cex=3, 
+                 alpha.regions=1)
+
+#If you then want to make sure that CARCRK shows up with a small black marker on maps, you can change the color and give the mapview a name. That will retain all the qualities you defined.
+CARCRKmap<-mapview(CARCRKSite,
+                 col.regions="black",
+                 cex=3, 
+                 alpha.regions=1)
+```
+
+Let's look at all the sample sites. Note that if we don't have a base map, we will only see some collection of dots without a map -- but it will at least give you an idea if it looks like the points are relatively like reality.
+
+**Map: All sample sites**
+```{r mapping all sample sites}
+
+mapviewOptions(basemaps = c("Esri.WorldImagery", "OpenStreetMap"),
+               layers.control.pos = "topleft")
+
+#Tell R that you have coordinates in your data frame.
+SampleSites <- st_as_sf(x = LocationCoord, 
+                        coords = c("Longitude", "Latitude"),
+                        crs = "+proj=longlat +datum=NAD83")
+
+#see what that looks like on a map
+mapview(SampleSites,
+                 col.regions="black",
+                 cex=3, 
+                 alpha.regions=1)
+
+#name the map layer
+Sites <- mapview(SampleSites,
+                 col.regions="black",
+                 cex=3, 
+                 alpha.regions=1)
+```
+
+**TIP:** Adding layers to a map does not REQUIRE each layer to have "mapview" qualities identified. Creating qualities and naming them does make it easy to pull in map layers that have specific qualities you want without having to re-define them.
+
+
+### Putting all the layers together in one map
+Finally! Actually putting it all together is pretty fast. You can choose which of the layers you made that you want to show in a map.
+
+An easy way to make the map is to code for the base maps, provide details for one of your maps, then use the + sign to add more of the dataframes or the "mapviews" that you created above.
+
+**Map: Sample site location, towns, and AWC sites in watershed**
+```{r Watershed map #1}
+
+#this provides the base maps
+mapviewOptions(basemaps = c("Esri.WorldImagery", "OpenStreetMap"),
+               raster.palette = grey.colors,
+               vector.palette = colorRampPalette(c("snow", "cornflowerblue", "grey10")),
+               na.color = "magenta",
+               layers.control.pos = "topleft")
+
+#this adds the layers -- note that we have used a mix of layers that DO have defined "mapviews" (TownMap) and those that don't.
+mapview(MatWshdHUC10,  col.regions = "#F0FFFF", layer.name="Watersheds (HUC10)") +AWCpoint_Mat + CARCRKmap+TownMap 
+```
+
+**Map: Matanuska River sample sites and towns**
+```{r Watershed map #2}
+#change what is in + to add or remove layers
+
+mapview(MatWshdHUC10,  col.regions = "#F0FFFF", layer.name="Watersheds (HUC10)") + Sites+TownMap
+```
+
+You can get creative and change the layers "on the fly" if they don't work when you are making maps with different layers.  You do this by creating a new "mapview". 
+
+**TIP:** Check the Environment pane to see what "Names" are map layers. 
+
+**Map: Matanuska River sample sites, towns, and anadromous areas**
+```{r changing mapviews}
+#If you want to change the layer color or name as you are creating a multi-layer map, you need to add an additional "mapview" set.
+
+#Here we change the AWCpoint_Mat colors (which are the actual locations where fish photos and documentation were collected) to a grey color.
+mapview(MatWshdHUC10,  col.regions = "#F0FFFF", layer.name="Watersheds (HUC10)") + mapview(AWCpoint_Mat, col.regions="grey", layer.name="Documentation of anadromous fish") + mapview(AWC_Mat, col.regions="cornflowerblue", layer.name="Anadromous streams") + Sites+TownMap
+```
+
+**Map: Matanuska River basin anadromous streams and Water Quality sample sites**
+```{r Anadromous Streams and Sample Sites map}
+
+#Example map without the Anadromous Points, but with Anadromous Streams. We have not defined a "mapview" for anadromous streams yet. Here we say that we want streams to be in the color of "cornflower blue" and we give the layer a name.
+mapview(MatWshdHUC10,  col.regions = "#F0FFFF", layer.name="Watersheds (HUC10)") + mapview(AWC_Mat, color="blue", layer.name="Anadromous streams") + Sites
+```
+
+### Labeling points
+These are ways to add site name labels, but none were very good.
+```{r site name popups map, results='hide'}
+#leaflet version of the mapview, allows names to be added
+#note that you may, or may not, end up with names on a blank page, no background map, if this is not added above "leaflet": data(WQData)
+
+leaflet(Locations) %>% 
+  addTiles() %>% 
+  addLabelOnlyMarkers(~Longitude, ~Latitude, 
+label = paste(Locations$SiteID),
+labelOptions = labelOptions(noHide = TRUE, 
+                            offset=c(5,-20),
+                            textOnly = TRUE))%>%
+  addPopups(~Longitude, ~Latitude,
+            popup = Locations$SiteName,
+            options(keepInView=FALSE, autoPan=TRUE, closeButton=TRUE))%>%
+   addScaleBar(position = "bottomleft")
+```
+
+```{r site labels map, results='hide'}
+#note that what should be options for zoomin or interactive do not create any changes to the map that this creates
+leaflet(Locations) %>% 
+  addTiles() %>% 
+  addLabelOnlyMarkers(~Longitude, ~Latitude, 
+                     label = paste(Locations$SiteID),
+                     labelOptions = labelOptions(noHide = TRUE, 
+                                                 offset=c(5,-20),
+                                                 textOnly = TRUE))
+```
+
+```{r cluster labels map}
+#this uses "cluster options" which we can play with to show site ID or site Name when you zoom in to a circle. Can it be done in mapview?
+#try cluster options and data=getMapData
+
+leaflet(Locations) %>% 
+  addTiles() %>% 
+  addLabelOnlyMarkers(~Longitude, ~Latitude, 
+                      label = paste(Locations$SiteID),
+                      labelOptions = labelOptions(noHide = TRUE, 
+                                                 offset=c(5,-20),
+                                                 textOnly = TRUE),
+                      clusterOptions = markerClusterOptions())
+```
+<br>
+
+<br>
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+```
+::: blue
+# Knitting
+:::
+<br> 
+Let's look at what we made!
+
+Go to the ball of yarn icon at the top of the "Source" pane, open it and select "knit to html". 
+
+**TIP:** Before you knit, make sure that every code chunk will run! Either hit "Run All" at the top of the Source pane or go individually through each chunk yourself (Ctrl+Alt+N will move to each following chunk).
+
+<br>
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+```
+::: blue
+# Summary
+:::
+<br> 
+That is a LOT of information! It covers pulling information into R, performing a few analyses, and placing images, figures, and maps in a document.  
+
+I would suggest using this as a reference, along with other references I've provided. The data in my files (Data, Images, Shapefiles) lets you test out code. Then replace my data with yours and move through it. There will inevitably be code chunks that won't work. Use search engines first to see if you can figure out the block. Also consider attending the Tribal Data Drop in that is once a month through ITEP. I'm willing to help as well, but sometimes what seems like a small problem may end up being something that takes a huge amount of time to figure out -- two of us still have not figured out how to put photos side by side nicely!
+
+Also, all the training I have had has been to create html. I am not going to be much help with trying to create a doc document.

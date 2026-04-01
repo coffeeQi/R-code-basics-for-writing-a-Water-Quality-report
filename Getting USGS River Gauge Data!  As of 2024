@@ -1,0 +1,38 @@
+##USGS river gauge data! As of 2024
+  
+  ##get streamflow data - https://waterdata.usgs.gov/monitoring-location/12061500/#parameterCode=00065&period=P7D&showMedian=true
+
+##for specific gauge
+# siteNo <- "12061500"
+
+## 00060 pcode is for discharge in cfs
+## 00065 pcode is for "gage" height ft
+##For a full list of pCodes see #https://help.waterdata.usgs.gov/parameter_cd?group_cd=PHY
+
+# pCode <- "00065"
+# 
+# start.date <- "2021-09-30"
+# end.date <- "2023-10-25"
+
+# Skokat101gh <- readNWISuv(siteNumbers = siteNo,
+#                           parameterCd = pCode,
+#                           startDate = start.date,
+#                           endDate = end.date,
+#                           tz="America/Los_Angeles")
+
+
+# Skokat101gh <- renameNWISColumns(Skokat101gh)
+
+##tells you stuff about the parameters
+# parameterInfo <- attr(Skokat101gh, "variableInfo")
+##gives you information about the site you chose
+# siteInfo <- attr(Skokat101gh, "siteInfo")
+##tells you if the time is in daylight savings time
+##dst(Skokat101gh$dateTime)
+
+# Skokat101ghv1 <- Skokat101gh %>% 
+#   mutate(DISPLAY_NAME="gauge height") %>% 
+#   rename(RESULT_NUMBER=GH_Inst,StationID=site_no) %>% 
+#   select(StationID,dateTime,DISPLAY_NAME,RESULT_NUMBER)
+##put this in chunk when you want to bind with SWQM data
+##SWQM_n_USGS <- bind_rows(Skokat101ghv1,EC_SWQM8)
